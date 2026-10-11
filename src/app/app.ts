@@ -31,10 +31,12 @@ export class App {
   readonly status = signal('Ready');
   readonly links = signal<Link[]>([]);
   readonly results = signal<Results | null>(null);
+  readonly failures = signal<string[]>([]);
 
   async run(): Promise<void> {
     this.status.set('Running');
     this.results.set(null);
+    this.failures.set([]);
 
     try {
       await firstValueFrom(this.http.get('/api/session'));
@@ -43,11 +45,17 @@ export class App {
       this.links.set(links);
 
       for (const link of links) {
-        await firstValueFrom(this.http.post(link.href, { source: 'attacker-controlled-href' }));
+        try {
+          await firstValueFrom(this.http.post(link.href, { source: 'attacker-controlled-href' }));
+        } catch (error) {
+          const message = error instanceof Error ? error.message : JSON.stringify(error);
+          this.failures.update((items) => [...items, `${link.id}: ${message}`]);
+        }
       }
 
       this.results.set(await firstValueFrom(this.http.get<Results>('/api/results')));
-      this.status.set('Done');
+      const failed = this.failures().length;
+      this.status.set(failed ? `Done (${failed} failed)` : 'Done');
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       this.status.set(`Error: ${message}`);

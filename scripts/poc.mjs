@@ -47,6 +47,12 @@ try {
   });
   const page = await browser.newPage();
   page.on('pageerror', (error) => console.error('Browser:', error.message));
+  page.on('requestfailed', (request) =>
+    console.error('Request failed:', request.url(), request.failure()?.errorText),
+  );
+  page.on('response', (response) => {
+    if (response.status() >= 400) console.error('HTTP error:', response.status(), response.url());
+  });
   const response = await page.goto('http://127.0.0.1:4200/', { waitUntil: 'networkidle0' });
   assert.equal(
     response?.status(),
@@ -58,29 +64,55 @@ try {
   await page.waitForFunction(
     () => {
       const status = document.querySelector('[data-testid="status"]')?.textContent ?? '';
-      return status === 'Done' || status.startsWith('Error:');
+      return status.startsWith('Done') || status.startsWith('Error:');
     },
     { timeout: 15000 },
   );
 
   const status = await page.$eval('[data-testid="status"]', (node) => node.textContent);
-  assert.equal(status, 'Done', `App failed: ${status}; backend: ${serverOutput}`);
-
   const captures = await (await fetch('http://127.0.0.1:4200/api/results')).json();
+  console.table([...captures.victim, ...captures.attacker]);
+  const failures = JSON.parse(
+    await page.$eval('[data-testid="failures"]', (node) => node.textContent).catch(() => '[]'),
+  );
+  assert.equal(status, 'Done', `App failed: ${status}; backend: ${serverOutput}`);
+  assert.deepEqual(failures, [], `Requests failed: ${failures.join('; ')}`);
   const victim = captures.victim.find((item) => item.id === 'same-origin');
   const attacker = Object.fromEntries(captures.attacker.map((item) => [item.id, item]));
-  console.table([...captures.victim, ...captures.attacker]);
+  const bypassIds = [
+    'backslash',
+    'backslash-slash',
+    'leading-space',
+    'leading-tab',
+    'leading-whitespace',
+    'inner-tab',
+    'inner-lf',
+    'inner-cr',
+    'leading-null',
+    'leading-unit-separator',
+    'http-double-backslash',
+    'http-slash-backslash',
+    'http-scheme-tab',
+    'same-host-port',
+  ];
 
+  assert.equal(captures.victim.length, 1);
+  assert.equal(captures.attacker.length, bypassIds.length + 2);
+  assert.equal(Object.keys(attacker).length, captures.attacker.length, 'Duplicate capture ID');
   assert.ok(victim?.xsrf, 'Same-origin control has no X-XSRF-TOKEN');
+  assert.equal(victim.cookie, `XSRF-TOKEN=${victim.xsrf}`);
   assert.equal(attacker['protocol-relative']?.xsrf, null);
   assert.equal(attacker.absolute?.xsrf, null);
-  assert.equal(attacker.backslash?.xsrf, victim.xsrf);
-  assert.equal(attacker['leading-whitespace']?.xsrf, victim.xsrf);
+  for (const id of bypassIds) {
+    assert.equal(attacker[id]?.xsrf, victim.xsrf, `${id} did not leak the token`);
+  }
   assert.ok(
     captures.attacker.every((item) => item.cookie === null),
     'Cookie sent to attacker',
   );
-  console.log('CONFIRMED: two bypass URLs sent X-XSRF-TOKEN to the attacker origin.');
+  console.log(
+    `CONFIRMED: ${bypassIds.length} bypass URLs sent X-XSRF-TOKEN to an attacker origin.`,
+  );
 } finally {
   await browser?.close();
   server.kill();

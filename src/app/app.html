@@ -10,7 +10,10 @@
     <h2>Input URLs</h2>
     <ul>
       @for (link of links(); track link.id) {
-        <li><strong>{{ link.id }}</strong>: <code>{{ link.href | json }}</code></li>
+        <li>
+          <strong>{{ link.id }}</strong
+          >: <code>{{ link.href | json }}</code>
+        </li>
       }
     </ul>
   }
@@ -18,5 +21,10 @@
   @if (results(); as data) {
     <h2>Captured requests</h2>
     <pre data-testid="results">{{ data | json }}</pre>
+  }
+
+  @if (failures().length) {
+    <h2>Failed requests</h2>
+    <pre data-testid="failures">{{ failures() | json }}</pre>
   }
 </main>
