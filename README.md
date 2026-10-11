@@ -1,59 +1,30 @@
-# BypassXsrfTokenHttpClient
+# Angular HttpClient XSRF origin bypass
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 22.2.0.
+Small browser PoC for Angular `20.3.33`. The [CVE-2025-66035 patch](https://github.com/angular/angular/security/advisories/GHSA-58c5-g7wp-6w37) blocks protocol-relative URLs, but the v20 check still treats some cross-origin URLs as relative. If an attacker controls the start of a URL passed to `HttpClient.post()`, the request can expose `X-XSRF-TOKEN`.
 
-## Development server
+The demo API returns five `href` values. The app posts to each one using `withFetch()`:
 
-To start a local development server, run:
+| Input | Attacker receives token? |
+| --- | --- |
+| `/api/echo` | Same-origin control: token stays with app |
+| `//localhost:4301/collect` | No |
+| `http://localhost:4301/collect` | No |
+| `/\localhost:4301/collect` | **Yes** |
+| leading space and tab before `//localhost:4301/collect` | **Yes** |
 
-```bash
-ng serve
+## Run
+
+```powershell
+npm ci
+npm run poc
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Requires Chrome or Edge. Set `$env:CHROME_PATH` if the browser is outside its default Windows path. The runner builds the app, starts both local servers, drives a real browser, and checks captured headers. `npm start` serves the manual demo at `http://127.0.0.1:4200`.
 
-## Code scaffolding
+## Files
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+- `src/app/` — Angular request flow.
+- `backend/server.mjs` — demo API at `127.0.0.1:4200` and attacker receiver at `localhost:4301`.
+- `scripts/poc.mjs` — browser validation.
 
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Both servers bind to loopback. The XSRF cookie is random test data; the attacker receiver gets the header, not the cookie.

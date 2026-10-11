@@ -1,0 +1,83 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  color: #e6edf7;
+  font:
+    16px/1.5 system-ui,
+    sans-serif;
+}
+
+main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 3rem 1.5rem 5rem;
+}
+
+h1,
+h2 {
+  color: #f4f7fc;
+  line-height: 1.25;
+}
+
+h1 {
+  margin-top: 0;
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+}
+
+h2 {
+  margin-top: 2.5rem;
+  font-size: 1.1rem;
+}
+
+p {
+  color: #aebbd0;
+}
+
+button {
+  border: 1px solid #4666a5;
+  border-radius: 8px;
+  padding: 0.65rem 1rem;
+  background: #243e72;
+  color: #f4f7fc;
+  font: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: #31528f;
+}
+button:focus-visible {
+  outline: 2px solid #9bbcff;
+  outline-offset: 3px;
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+code,
+pre {
+  border: 1px solid #29364a;
+  border-radius: 5px;
+  background: #141c28;
+  color: #dbe7f7;
+  font:
+    0.9em/1.5 ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace;
+}
+
+code {
+  padding: 0.1rem 0.3rem;
+}
+
+li {
+  margin: 0.75rem 0;
+  overflow-wrap: anywhere;
+}
+
+pre {
+  padding: 1rem;
+  overflow-x: auto;
+}

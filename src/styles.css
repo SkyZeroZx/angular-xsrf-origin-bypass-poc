@@ -1,1 +1,12 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  color-scheme: dark;
+  background: #0b1018;
+  color: #e6edf7;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: #0b1018;
+}
